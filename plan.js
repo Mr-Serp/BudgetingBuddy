@@ -23,7 +23,7 @@ function readPlan() {
     const value = JSON.parse(localStorage.getItem(planKey));
     if (Array.isArray(value)) return value;
   } catch {}
-  return structuredClone(initial);
+  return initial.map(node => ({...node}));
 }
 
 const budgetKey = 'budgeting-buddy-months-v1';
@@ -53,7 +53,7 @@ function readBudget() {
     if (stored?.start && stored.months) return stored;
   } catch {}
   initialBudget ??= {start:currentMonth, months:{[currentMonth]:readPlan()}};
-  return structuredClone(initialBudget);
+  return JSON.parse(JSON.stringify(initialBudget));
 }
 
 function initializeBudget() {
@@ -62,11 +62,15 @@ function initializeBudget() {
   } catch {}
 }
 
+function hasSavedMonth(budget,month) {
+  return Object.prototype.hasOwnProperty.call(budget.months,month);
+}
+
 function monthPlan(month, budget = readBudget()) {
-  if (Object.hasOwn(budget.months,month)) return budget.months[month];
+  if (hasSavedMonth(budget,month)) return budget.months[month];
   if (month < budget.start) return [];
-  const nearest = Object.keys(budget.months)
-    .filter(key => key >= budget.start && key < month).sort().at(-1);
+  const months = Object.keys(budget.months).filter(key => key >= budget.start && key < month).sort();
+  const nearest = months[months.length - 1];
   return budget.months[nearest] ?? [];
 }
 
@@ -79,7 +83,7 @@ function saveMonthPlan(month, nodes) {
 function clearMonthPlan(month) {
   const budget = readBudget();
   const following = shiftMonth(month,1);
-  if (month >= budget.start && month !== '9999-12' && !Object.hasOwn(budget.months,following)) {
+  if (month >= budget.start && month !== '9999-12' && !hasSavedMonth(budget,following)) {
     // Preserve the next month's inherited plan before changing its source.
     budget.months[following] = monthPlan(following,budget);
   }

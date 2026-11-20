@@ -288,31 +288,46 @@ byId('remove').onclick = () => {
   editor.close();
   render();
 };
-const clearMapDialog = byId('clear-map-dialog');
-byId('clear-map').onclick = () => {
+const clearMapButton = byId('clear-map');
+const clearMapConfirmation = byId('clear-map-confirmation');
+const cancelClearMap = byId('cancel-clear-map');
+function showClearMapConfirmation(open) {
+  clearMapConfirmation.hidden = !open;
+  clearMapButton.setAttribute('aria-expanded',String(open));
+}
+
+clearMapButton.onclick = () => {
   byId('clear-map-description').textContent = 'Remove all nodes and connections for ' + monthLabel(selectedMonth) + '?';
   byId('clear-map-error').textContent = '';
-  clearMapDialog.showModal();
+  showClearMapConfirmation(true);
+  cancelClearMap.focus();
 };
-byId('cancel-clear-map').onclick = () => clearMapDialog.close();
-byId('clear-map-form').onsubmit = event => {
-  event.preventDefault();
+function cancelClear() {
+  showClearMapConfirmation(false);
+  clearMapButton.focus();
+}
+cancelClearMap.onclick = cancelClear;
+clearMapConfirmation.onkeydown = event => {
+  if (event.key === 'Escape') cancelClear();
+};
+byId('confirm-clear-map').onclick = () => {
   try {
     clearMonthPlan(selectedMonth);
   } catch {
-    byId('clear-map-error').textContent = 'Could not save the change on this device. Please try again.';
+    byId('clear-map-error').textContent = 'Could not save the change. Check that this site can store data in your browser.';
     return;
   }
   nodes = [];
   byId('status').textContent = '● Saved on this device';
-  clearMapDialog.close();
+  showClearMapConfirmation(false);
   render();
   byId('connection-status').textContent = 'Flow Map cleared for ' + monthLabel(selectedMonth) + '.';
   byId('add').focus();
 };
 
 function setView(isMap) {
-  byId('clear-map').hidden = !isMap;
+  clearMapButton.hidden = !isMap;
+  if (!isMap) showClearMapConfirmation(false);
   viewport.hidden = byId('zoom').hidden = !isMap;
   listView.hidden = isMap;
   byId('map').setAttribute('aria-pressed', isMap);
@@ -335,7 +350,7 @@ function renderMonthSummary() {
   byId('prev-month').disabled = selectedMonth === '1000-01';
   byId('next-month').disabled = selectedMonth === '9999-12';
   byId('credit-link').href = 'credit.html?month=' + selectedMonth;
-  const saved = Object.hasOwn(budget.months,selectedMonth);
+  const saved = hasSavedMonth(budget,selectedMonth);
   byId('month-note').textContent = saved ? 'USD · Changes apply to this month'
     : selectedMonth < budget.start ? 'USD · No prior plan for this month'
       : 'USD · Starting from the last saved plan. Edit to save this month.';
@@ -356,6 +371,7 @@ function renderMonthSummary() {
 }
 
 function changeMonth(delta) {
+  showClearMapConfirmation(false);
   selectedMonth = shiftMonth(selectedMonth,delta);
   const url = new URL(location.href);
   url.searchParams.set('month',selectedMonth);
@@ -373,7 +389,7 @@ window.addEventListener('storage', event => {
   if (event.key !== budgetKey && event.key !== null) return;
   if (editor.open) editor.close();
   if (byId('connection-editor').open) byId('connection-editor').close();
-  if (clearMapDialog.open) clearMapDialog.close();
+  showClearMapConfirmation(false);
   nodes = monthPlan(selectedMonth);
   render();
 });

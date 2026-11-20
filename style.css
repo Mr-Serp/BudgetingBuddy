@@ -43,3 +43,4 @@
 @media(max-width:560px){.boardhead:has(.map-title){flex-wrap:wrap}.boardhead:has(.map-title) .board-actions{flex-direction:row;justify-content:flex-start}}
 .clear-map{border-color:#694450;color:var(--pink);background:#271c29}.clear-map:disabled{cursor:default}
 #clear-map-description,#clear-map-error{margin-top:10px}#clear-map-error:empty{display:none}
+.clear-map-confirmation{padding:12px 17px;border-block-start:1px solid #694450;background:#211a24}.clear-map-confirmation>div{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.clear-map-confirmation p:first-child{margin-top:0}
