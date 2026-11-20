@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Build a monthly budget, map how money moves between accounts, and see what you have left."><title>Budgeting Buddy — Visual Budget Planner</title><link rel="stylesheet" href="style.css?v=clear-map-2"></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Build a monthly budget, map how money moves between accounts, and see what you have left."><title>Budgeting Buddy — Visual Budget Planner</title><link rel="stylesheet" href="style.css?v=budget-graph-1"></head>
 <body>
 <header class="top"><a class="brand" href="./"><span class="mark">≋</span> Budgeting Buddy</a><nav class="site-nav" aria-label="Workspace"><a href="./" aria-current="page">Flow Map</a><a id="credit-link" href="credit.html">Credit Score</a></nav><span id="status" class="saved" role="status">● Saved on this device</span></header>
 <main>
@@ -10,13 +10,19 @@
 <article><span class="badge investment">◈</span><div>Monthly investments<strong id="investment"></strong></div></article>
 <article class="net"><span class="badge account">≈</span><div>Monthly remainder<strong id="net"></strong></div></article>
 </section>
-<div class="planner-layout"><section class="board"><header class="boardhead"><div><div class="map-title"><h2>Flow map</h2><div class="month-picker" role="group" aria-label="Budget month"><button type="button" id="prev-month" aria-label="Previous month">‹</button><time id="budget-month" aria-live="polite"></time><button type="button" id="next-month" aria-label="Next month">›</button></div></div><p>Drag a right circle to a highlighted left edge to connect nodes.</p></div><div class="board-actions"><button type="button" id="clear-map" class="download clear-map" aria-expanded="false" aria-controls="clear-map-confirmation">Clear map</button><button type="button" id="download-pdf" class="download">Download PDF</button><button type="button" id="download" class="download">Download Excel</button><div class="switch" aria-label="View"><button id="map" aria-pressed="true">⌘ Map</button><button id="list" aria-pressed="false">☰ List</button></div></div></header>
+<div class="planner-layout"><section class="board"><header class="boardhead"><div><div class="map-title"><h2>Flow map</h2><div class="month-picker" role="group" aria-label="Budget month"><button type="button" id="prev-month" aria-label="Previous month">‹</button><time id="budget-month" aria-live="polite"></time><button type="button" id="next-month" aria-label="Next month">›</button></div></div><p id="view-help">Drag a right circle to a highlighted left edge to connect nodes.</p></div><div class="board-actions"><button type="button" id="clear-map" class="download clear-map" aria-expanded="false" aria-controls="clear-map-confirmation">Clear map</button><button type="button" id="download-pdf" class="download">Download PDF</button><button type="button" id="download" class="download">Download Excel</button><div class="switch" aria-label="View"><button id="map" aria-pressed="true">⌘ Map</button><button id="list" aria-pressed="false">☰ List</button><button type="button" id="graph" aria-pressed="false" aria-controls="graph-view">Graph</button></div></div></header>
 <section id="clear-map-confirmation" class="clear-map-confirmation" aria-label="Confirm clearing the Flow Map" hidden>
 <p id="clear-map-description"></p><p id="clear-map-error" role="status"></p>
 <div><button type="button" id="cancel-clear-map" class="download">Cancel</button><button type="button" id="confirm-clear-map" class="download clear-map">Clear this month</button></div>
 </section>
 <p id="connection-status" class="report-status" role="status"></p><div id="viewport"><div id="surface"><canvas id="edges" aria-hidden="true"></canvas><div id="nodes"></div></div></div><div id="listView" hidden></div>
-<footer><div class="legend"><span class="income">Income</span><span class="account">Account</span><span class="expense">Expense</span><span class="investment">Investment</span></div><div class="zoom" id="zoom"><button id="out" aria-label="Zoom out">−</button><button id="fit" title="Fit map">100%</button><button id="in" aria-label="Zoom in">+</button></div></footer></section>
+<section id="graph-view" class="graph-view" aria-labelledby="graph-title" hidden>
+<div class="graph-heading"><h3 id="graph-title">Monthly budget</h3><p id="graph-status" aria-live="polite"></p></div>
+<div class="legend graph-legend" aria-label="Chart series"><span class="income">Income</span><span class="expense">Expenses</span><span class="investment">Investments</span><span class="graph-remainder">Remainder</span></div>
+<div class="graph-scroll" id="graph-scroll" tabindex="0" aria-label="Monthly budget chart, scroll for more months">
+<div class="graph-chart" id="graph-chart"></div></div>
+</section>
+<footer id="map-footer"><div class="legend"><span class="income">Income</span><span class="account">Account</span><span class="expense">Expense</span><span class="investment">Investment</span></div><div class="zoom" id="zoom"><button id="out" aria-label="Zoom out">−</button><button id="fit" title="Fit map">100%</button><button id="in" aria-label="Zoom in">+</button></div></footer></section>
 <aside id="flowy" class="flowy-panel" aria-labelledby="flowy-title" hidden>
 <header class="flowy-head"><span class="flowy-avatar" aria-hidden="true"><span class="flowy-icon"><i></i></span></span><h2 id="flowy-title" tabindex="-1">Ask Flowy</h2><button type="button" id="close-flowy" aria-label="Close Ask Flowy">×</button></header>
 <div class="flowy-body">
@@ -42,4 +48,4 @@
 <p id="connection-help"></p><div id="allocation-fields"></div><p id="allocation-status" aria-live="polite"></p>
 <div class="actions"><button class="primary" type="submit">Save connections</button></div>
 </form></dialog>
-<script src="vendor/fflate.js"></script><script src="excel.js"></script><script src="report.js"></script><script src="plan.js?v=clear-map-2"></script><script src="connections.js"></script><script src="connection-editor.js"></script><script src="app.js?v=clear-map-2"></script><script src="flowy.js"></script></body></html>
+<script src="vendor/fflate.js"></script><script src="excel.js"></script><script src="report.js"></script><script src="plan.js?v=clear-map-2"></script><script src="connections.js"></script><script src="connection-editor.js"></script><script src="budget-graph.js"></script><script src="app.js?v=budget-graph-1"></script><script src="flowy.js"></script></body></html>

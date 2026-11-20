@@ -175,6 +175,7 @@ function render() {
     listView.append(row);
   }
   if (!viewport.hidden) draw();
+  if (!byId('graph-view').hidden) renderBudgetGraph();
 }
 function updateFields() {
   const type = fields.type.value;
@@ -325,17 +326,24 @@ byId('confirm-clear-map').onclick = () => {
   byId('add').focus();
 };
 
-function setView(isMap) {
+function setView(view) {
+  const isMap = view === 'map';
   clearMapButton.hidden = !isMap;
   if (!isMap) showClearMapConfirmation(false);
   viewport.hidden = byId('zoom').hidden = !isMap;
-  listView.hidden = isMap;
-  byId('map').setAttribute('aria-pressed', isMap);
-  byId('list').setAttribute('aria-pressed', !isMap);
+  listView.hidden = view !== 'list';
+  byId('graph-view').hidden = view !== 'graph';
+  byId('map-footer').hidden = view === 'graph';
+  byId('view-help').textContent = {
+    map:'Drag a right circle to a highlighted left edge to connect nodes.',
+    list:'Select a row to edit a node.',
+    graph:'Compare monthly plans and select a month to see its totals.'
+  }[view];
+  for (const id of ['map','list','graph']) byId(id).setAttribute('aria-pressed',String(id === view));
   if (isMap) draw();
+  if (view === 'graph') renderBudgetGraph();
 }
-byId('map').onclick = () => setView(true);
-byId('list').onclick = () => setView(false);
+for (const view of ['map','list','graph']) byId(view).onclick = () => setView(view);
 byId('fit').onclick = () => { scale = undefined; viewport.scrollTo(0,0); draw(); };
 byId('out').onclick = () => { scale = Math.max(.2,lastScale / 1.25); draw(); };
 byId('in').onclick = () => { scale = Math.min(2,lastScale * 1.25); draw(); };
@@ -370,9 +378,9 @@ function renderMonthSummary() {
   }
 }
 
-function changeMonth(delta) {
+function selectBudgetMonth(month) {
   showClearMapConfirmation(false);
-  selectedMonth = shiftMonth(selectedMonth,delta);
+  selectedMonth = month;
   const url = new URL(location.href);
   url.searchParams.set('month',selectedMonth);
   history.replaceState(null,'',url);
@@ -381,8 +389,8 @@ function changeMonth(delta) {
   byId('report-status').textContent = '';
   render();
 }
-byId('prev-month').onclick = () => changeMonth(-1);
-byId('next-month').onclick = () => changeMonth(1);
+byId('prev-month').onclick = () => selectBudgetMonth(shiftMonth(selectedMonth,-1));
+byId('next-month').onclick = () => selectBudgetMonth(shiftMonth(selectedMonth,1));
 new ResizeObserver(() => { if (!viewport.hidden) draw(); }).observe(viewport);
 render();
 window.addEventListener('storage', event => {
