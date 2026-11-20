@@ -21,7 +21,7 @@ function worksheet(rows, widths) {
   return '<worksheet xmlns="' + spreadsheetNs + '"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>' + columns + '</cols><sheetData>' + data + '</sheetData><autoFilter ref="A1:' + String.fromCharCode(64 + widths.length) + rows.length + '"/></worksheet>';
 }
 
-function createPlanWorkbook(summaryRows, nodeRows, {zipSync, strToU8}) {
+function createPlanWorkbook(summaryRows, nodeRows, {zipSync, strToU8}, month) {
   const files = {
     '[Content_Types].xml': `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
       <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
@@ -38,7 +38,7 @@ function createPlanWorkbook(summaryRows, nodeRows, {zipSync, strToU8}) {
       <Relationship Id="rId3" Type="${officeRelNs}/styles" Target="styles.xml"/>
     </Relationships>`,
     'xl/workbook.xml': `<workbook xmlns="${spreadsheetNs}" xmlns:r="${officeRelNs}"><sheets>
-      <sheet name="Monthly summary" sheetId="1" r:id="rId1"/><sheet name="Flow map" sheetId="2" r:id="rId2"/>
+      <sheet name="Summary ${month}" sheetId="1" r:id="rId1"/><sheet name="Flow map" sheetId="2" r:id="rId2"/>
     </sheets></workbook>`,
     'xl/styles.xml': `<styleSheet xmlns="${spreadsheetNs}">
       <numFmts count="1"><numFmt numFmtId="164" formatCode="&quot;$&quot;#,##0.00;-&quot;$&quot;#,##0.00"/></numFmts>
@@ -49,7 +49,7 @@ function createPlanWorkbook(summaryRows, nodeRows, {zipSync, strToU8}) {
       <cellXfs count="3"><xf xfId="0"/><xf xfId="0" fontId="1" applyFont="1"/><xf xfId="0" numFmtId="164" applyNumberFormat="1"/></cellXfs>
       <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
     </styleSheet>`,
-    'xl/worksheets/summary.xml': worksheet(summaryRows, [32, 16, 16, 18, 22, 16]),
+    'xl/worksheets/summary.xml': worksheet(summaryRows, [32, 16, 16, 18, 22, 16, 24]),
     'xl/worksheets/nodes.xml': worksheet(nodeRows, [34, 16, 34, 18, 18])
   };
   return zipSync(Object.fromEntries(Object.entries(files).map(([name, xml]) => [name, strToU8('<?xml version="1.0" encoding="UTF-8"?>' + xml)])));

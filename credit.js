@@ -1,3 +1,7 @@
+initializeBudget();
+const creditMonth = monthFromUrl();
+byId('flow-map-link').href = './?month=' + creditMonth;
+byId('credit-plan-month').textContent = 'Payments are sent to the ' + monthLabel(creditMonth) + ' plan.';
 const cardKey = 'flowledger-credit-cards-v1';
 const cardEditor = byId('card-editor');
 const cardFields = byId('card-form').elements;
@@ -27,7 +31,7 @@ function creditButton(label, action) {
 
 function renderCredit() {
   const cards = readCards();
-  const plan = readPlan();
+  const plan = monthPlan(creditMonth);
   const balance = cards.reduce((sum, card) => sum + card.balance, 0);
   const limit = cards.reduce((sum, card) => sum + card.limit, 0);
   const remaining = cards.reduce((sum, card) => sum + Math.max(0, card.balance - card.payment), 0);
@@ -78,7 +82,7 @@ function showCardEditor(card) {
   cardFields.creditLimit.value = card ? card.limit / 100 : '';
   cardFields.payment.value = (card?.payment ?? 0) / 100;
   cardFields.account.replaceChildren(new Option('Unassigned', ''));
-  for (const node of readPlan().filter(node => node.type === 'account')) {
+  for (const node of monthPlan(creditMonth).filter(node => node.type === 'account')) {
     cardFields.account.add(new Option(node.label, node.id));
   }
   cardFields.account.value = card?.account ?? '';
@@ -102,7 +106,7 @@ function saveCards(cards, message) {
 function sendPayment(id) {
   const card = readCards().find(item => item.id === id);
   if (!card) return renderCredit();
-  const plan = readPlan();
+  const plan = monthPlan(creditMonth);
   const linked = plan.find(node => node.id === id && node.type === 'expense');
   const account = plan.some(node => node.id === card.account && node.type === 'account') ? card.account : '';
   const label = card.label + ' payment';
@@ -110,7 +114,7 @@ function sendPayment(id) {
   Object.assign(node, {label, amount:card.payment, account});
   if (!linked) plan.push(node);
   try {
-    localStorage.setItem(planKey, JSON.stringify(plan));
+    saveMonthPlan(creditMonth,plan);
     renderCredit();
     cardStatus.textContent = label + ' saved to the Flow Map.';
   } catch {
@@ -155,7 +159,7 @@ byId('remove-card').onclick = () => {
 };
 
 window.addEventListener('storage', event => {
-  if (event.key === cardKey || event.key === planKey || event.key === null) renderCredit();
+  if (event.key === cardKey || event.key === budgetKey || event.key === null) renderCredit();
 });
 window.addEventListener('pageshow', event => { if (event.persisted) renderCredit(); });
 renderCredit();

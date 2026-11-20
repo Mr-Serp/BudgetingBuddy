@@ -30,7 +30,7 @@ function reportTable(headers, rows, widths, numericColumns) {
   };
 }
 
-function createExpenseReport({totals, accounts, expenses}) {
+function createExpenseReport({totals, accounts, expenses, period, ytd}) {
   const section = text => ({text, style: 'section', headlineLevel: 1});
   const empty = text => ({text, color: '#475569', margin: [0, 0, 0, 10]});
   const expenseTable = reportTable(
@@ -60,7 +60,7 @@ function createExpenseReport({totals, accounts, expenses}) {
     }),
     content: [
       {text: 'Monthly financial summary', fontSize: 26, bold: true},
-      {text: 'Expense sheet  •  Planned amounts in USD', color: '#475569', margin: [0, 5, 0, 9]},
+      {text: period + '  •  Planned amounts in USD', color: '#475569', margin: [0, 5, 0, 9]},
       section('Monthly overview'),
       reportTable(
         ['Income', 'Expenses', 'Investments', 'Remainder'],
@@ -74,7 +74,9 @@ function createExpenseReport({totals, accounts, expenses}) {
         ['Account', 'Income', 'Expenses', 'Investments', 'Net transfers', 'Remainder'],
         accounts.map(item => [item.label, item.income, item.expense, item.investment, item.netTransfers, item.net]),
         ['*', 69, 69, 69, 69, 69], [1, 2, 3, 4, 5]
-      ) : empty('No account flows to show.')
+      ) : empty('No account flows to show.'),
+      section('Year-to-date account totals'),
+      ytd.length ? reportTable(['Account','Planned net'],ytd,['*',120],[1]) : empty('No account flow for this period.')
     ]
   };
 }

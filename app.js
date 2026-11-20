@@ -1,6 +1,9 @@
 const icons = {income:'↙',account:'▤',expense:'↗',investment:'◈'};
 const titles = {income:'Income',account:'Account',expense:'Expense',investment:'Investment'};
-let nodes = readPlan();
+initializeBudget();
+let selectedMonth = monthFromUrl();
+let nodes = monthPlan(selectedMonth);
+let accountRollup;
 let scale, activeId, removalPending, lastScale;
 const viewport = byId('viewport'), surface = byId('surface'), canvas = byId('edges');
 const nodeLayer = byId('nodes'), listView = byId('listView'), editor = byId('editor');
@@ -25,7 +28,7 @@ function connectionLabel(node) {
 }
 function save() {
   try {
-    localStorage.setItem(planKey, JSON.stringify(nodes));
+    saveMonthPlan(selectedMonth,nodes);
     byId('status').textContent = '● Saved on this device';
   } catch {
     byId('status').textContent = 'Changes could not be saved';
@@ -89,6 +92,7 @@ function draw() {
 }
 function render() {
   flows = calculateFlows(nodes);
+  renderMonthSummary();
   const totals = totalsFor();
   for (const name of ['income','expense','investment','net']) byId(name).textContent = money(totals[name]);
   byId('count').textContent = nodes.length + (nodes.length === 1 ? ' node' : ' nodes');
@@ -295,29 +299,72 @@ byId('list').onclick = () => setView(false);
 byId('fit').onclick = () => { scale = undefined; viewport.scrollTo(0,0); draw(); };
 byId('out').onclick = () => { scale = Math.max(.2,lastScale / 1.25); draw(); };
 byId('in').onclick = () => { scale = Math.min(2,lastScale * 1.25); draw(); };
+function renderMonthSummary() {
+  const budget = readBudget();
+  accountRollup = yearToDateAccounts(selectedMonth,{
+    ...budget, months:{...budget.months,[selectedMonth]:nodes}
+  });
+  const label = monthLabel(selectedMonth);
+  byId('budget-month').textContent = label;
+  byId('budget-month').dateTime = selectedMonth;
+  byId('prev-month').disabled = selectedMonth === '1000-01';
+  byId('next-month').disabled = selectedMonth === '9999-12';
+  byId('credit-link').href = 'credit.html?month=' + selectedMonth;
+  const saved = Object.hasOwn(budget.months,selectedMonth);
+  byId('month-note').textContent = saved ? 'USD · Changes apply to this month'
+    : selectedMonth < budget.start ? 'USD · No prior plan for this month'
+      : 'USD · Starting from the last saved plan. Edit to save this month.';
+  byId('account-period').textContent = 'Planned net through ' + label + '. Year-to-date totals reset in January.';
+  const body = byId('account-rollup-body');
+  body.replaceChildren();
+  for (const [id,account] of accountRollup) {
+    const row = body.insertRow();
+    for (const value of [account.label,money(flows.totals.get(id)?.net ?? 0),money(account.net)]) {
+      row.insertCell().textContent = value;
+    }
+  }
+  if (!accountRollup.size) {
+    const cell = body.insertRow().insertCell();
+    cell.colSpan = 3;
+    cell.textContent = 'No account flow for this period.';
+  }
+}
+
+function changeMonth(delta) {
+  selectedMonth = shiftMonth(selectedMonth,delta);
+  const url = new URL(location.href);
+  url.searchParams.set('month',selectedMonth);
+  history.replaceState(null,'',url);
+  nodes = monthPlan(selectedMonth);
+  byId('connection-status').textContent = '';
+  byId('report-status').textContent = '';
+  render();
+}
+byId('prev-month').onclick = () => changeMonth(-1);
+byId('next-month').onclick = () => changeMonth(1);
 new ResizeObserver(() => { if (!viewport.hidden) draw(); }).observe(viewport);
 render();
 window.addEventListener('storage', event => {
-  if (event.key !== planKey && event.key !== null) return;
+  if (event.key !== budgetKey && event.key !== null) return;
   if (editor.open) editor.close();
   if (byId('connection-editor').open) byId('connection-editor').close();
-  nodes = readPlan();
+  nodes = monthPlan(selectedMonth);
   render();
 });
 window.addEventListener('pageshow', event => {
   if (!event.persisted) return;
-  nodes = readPlan();
+  nodes = monthPlan(selectedMonth);
   render();
 });
 
 function downloadPlan() {
-  const summary = [['Account', 'Income (USD)', 'Expenses (USD)', 'Investments (USD)', 'Net transfers (USD)', 'Remainder (USD)']];
-  function addSummary(label, totals) {
-    summary.push([label, totals.income / 100, totals.expense / 100, totals.investment / 100, (totals.transfersIn - totals.transfersOut) / 100, totals.net / 100]);
+  const summary = [['Account', 'Income (USD)', 'Expenses (USD)', 'Investments (USD)', 'Net transfers (USD)', 'Remainder (USD)', 'Year-to-date net (USD)']];
+  function addSummary(label, totals, ytd = null) {
+    summary.push([label, totals.income / 100, totals.expense / 100, totals.investment / 100, (totals.transfersIn - totals.transfersOut) / 100, totals.net / 100, ytd === null ? null : ytd / 100]);
   }
   addSummary('Entire plan', totalsFor());
-  for (const node of nodes) {
-    if (node.type === 'account') addSummary(node.label, totalsFor(node.id));
+  for (const [id, account] of accountRollup) {
+    addSummary(account.label, flows.totals.get(id) ?? {income:0,expense:0,investment:0,transfersIn:0,transfersOut:0,net:0}, account.net);
   }
   if (hasUnassigned()) {
     addSummary('Unassigned flows', totalsFor(''));
@@ -335,13 +382,13 @@ function downloadPlan() {
     ]);
   }
 
-  const workbook = createPlanWorkbook(summary, rows, fflate);
+  const workbook = createPlanWorkbook(summary, rows, fflate, selectedMonth);
   const url = URL.createObjectURL(new Blob([workbook], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   }));
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'budgeting-buddy-plan.xlsx';
+  link.download = 'budgeting-buddy-plan-' + selectedMonth + '.xlsx';
   document.body.append(link);
   link.click();
   link.remove();
@@ -382,14 +429,16 @@ async function downloadExpenseReport() {
     account: accountFor(node)?.label ?? 'Unassigned',
     amount: money(node.amount)
   }));
-  const report = createExpenseReport({totals: formattedTotals(), accounts, expenses});
+  const exportMonth = selectedMonth;
+  const ytd = [...accountRollup.values()].map(account => [account.label,money(account.net)]);
+  const report = createExpenseReport({totals: formattedTotals(), accounts, expenses, period:monthLabel(exportMonth), ytd});
 
   try {
     pdfLibrary ??= loadPdfScript('vendor/pdfmake.min.js')
       .then(() => loadPdfScript('vendor/pdfmake-fonts.js'))
       .catch(error => { pdfLibrary = undefined; throw error; });
     await pdfLibrary;
-    await new Promise(resolve => window.pdfMake.createPdf(report).download('budgeting-buddy-expense-summary.pdf', resolve));
+    await new Promise(resolve => window.pdfMake.createPdf(report).download('budgeting-buddy-expense-summary-' + exportMonth + '.pdf', resolve));
     status.textContent = 'PDF download started.';
   } catch {
     status.textContent = 'Could not prepare the PDF. Try Download PDF again.';

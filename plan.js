@@ -25,3 +25,53 @@ function readPlan() {
   } catch {}
   return structuredClone(initial);
 }
+
+const budgetKey = 'budgeting-buddy-months-v1';
+const today = new Date();
+const currentMonth = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2,'0');
+const monthFormat = new Intl.DateTimeFormat('en-US',{month:'long',year:'numeric',timeZone:'UTC'});
+
+function monthLabel(month) {
+  return monthFormat.format(new Date(month + '-01T00:00:00Z'));
+}
+
+function shiftMonth(month, delta) {
+  const [year,number] = month.split('-').map(Number);
+  const index = year * 12 + number - 1 + delta;
+  return String(Math.floor(index / 12)).padStart(4,'0') + '-' + String(index % 12 + 1).padStart(2,'0');
+}
+
+function monthFromUrl() {
+  const value = new URLSearchParams(location.search).get('month');
+  return /^[1-9][0-9]{3}-(0[1-9]|1[0-2])$/.test(value ?? '') ? value : currentMonth;
+}
+
+let initialBudget;
+function readBudget() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(budgetKey));
+    if (stored?.start && stored.months) return stored;
+  } catch {}
+  initialBudget ??= {start:currentMonth, months:{[currentMonth]:readPlan()}};
+  return structuredClone(initialBudget);
+}
+
+function initializeBudget() {
+  try {
+    if (!localStorage.getItem(budgetKey)) localStorage.setItem(budgetKey,JSON.stringify(readBudget()));
+  } catch {}
+}
+
+function monthPlan(month, budget = readBudget()) {
+  if (Object.hasOwn(budget.months,month)) return budget.months[month];
+  if (month < budget.start) return [];
+  const nearest = Object.keys(budget.months)
+    .filter(key => key >= budget.start && key < month).sort().at(-1);
+  return budget.months[nearest] ?? [];
+}
+
+function saveMonthPlan(month, nodes) {
+  const budget = readBudget();
+  budget.months[month] = nodes;
+  localStorage.setItem(budgetKey,JSON.stringify(budget));
+}

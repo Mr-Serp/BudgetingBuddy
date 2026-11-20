@@ -93,3 +93,20 @@ function calculateFlows(nodes) {
   }
   return {overall,unassigned,totals,edges,amounts};
 }
+
+function yearToDateAccounts(through, budget) {
+  const accounts = new Map();
+  for (let month = through.slice(0,4) + '-01'; month <= through; month = shiftMonth(month,1)) {
+    const nodes = monthPlan(month,budget);
+    const {totals} = calculateFlows(nodes);
+    for (const node of nodes) {
+      if (node.type !== 'account') continue;
+      accounts.set(node.id,{
+        label:node.label,
+        net:(accounts.get(node.id)?.net ?? 0) + totals.get(node.id).net
+      });
+    }
+    if (month === through) break;
+  }
+  return accounts;
+}
