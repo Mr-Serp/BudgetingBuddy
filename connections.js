@@ -25,6 +25,8 @@ function calculateFlows(nodes) {
   const totals = new Map(accounts.map(n => [n.id,empty()]));
   const unassigned = empty(), overall = empty(), edges = [];
   const owners = new Map(nodes.map(n => [n.id,n]));
+  const amounts = new Map();
+  const percentageInvestments = new Map(accounts.map(n => [n.id,[]]));
   function distribute(node, amount, receive) {
     const links = allocationsFor(node).filter(link => totals.has(link.target));
     let units = 0;
@@ -41,6 +43,12 @@ function calculateFlows(nodes) {
   }
   for (const node of nodes) {
     if (node.type === 'account') continue;
+    if (node.type === 'investment' && node.investmentShare !== undefined) {
+      amounts.set(node.id,0);
+      percentageInvestments.get(node.account)?.push(node);
+      continue;
+    }
+    amounts.set(node.id,node.amount);
     overall[node.type] += node.amount;
     if (node.type === 'income') {
       unassigned.income += node.amount - distribute(node,node.amount,(total,cents) => { total.income += cents; });
@@ -60,8 +68,20 @@ function calculateFlows(nodes) {
   const queue = accounts.filter(n => upstream.get(n.id) === 0);
   for (const node of queue) {
     const total = totals.get(node.id);
-    const available = total.income + total.transfersIn - total.expense - total.investment;
-    total.transfersOut = distribute(node,Math.max(0,available),(target,cents) => { target.transfersIn += cents; });
+    const available = Math.max(0,total.income + total.transfersIn - total.expense - total.investment);
+    let units = 0;
+    let invested = 0;
+    for (const target of percentageInvestments.get(node.id)) {
+      units += target.investmentShare;
+      const next = Math.floor(available * units / fullAllocation);
+      const cents = next - invested;
+      amounts.set(target.id,cents);
+      total.investment += cents;
+      overall.investment += cents;
+      edges.push({source:node,target,type:'investment',share:target.investmentShare,cents});
+      invested = next;
+    }
+    total.transfersOut = distribute(node,available - invested,(target,cents) => { target.transfersIn += cents; });
     for (const {target} of allocationsFor(node)) {
       if (!upstream.has(target)) continue;
       upstream.set(target,upstream.get(target) - 1);
@@ -71,5 +91,5 @@ function calculateFlows(nodes) {
   for (const total of [overall,unassigned,...totals.values()]) {
     total.net = total.income + total.transfersIn - total.expense - total.investment - total.transfersOut;
   }
-  return {overall,unassigned,totals,edges};
+  return {overall,unassigned,totals,edges,amounts};
 }

@@ -54,6 +54,8 @@ function beginConnectionDrag(event, source) {
     }
     if (target.type === 'account') {
       openConnections(source,target);
+    } else if (target.type === 'investment') {
+      openEditor(target,source);
     } else {
       target.account = source.id;
       save();

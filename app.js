@@ -9,9 +9,14 @@ const nodeWidth = 214, nodeHeight = 78;
 const accountFor = node => nodes.find(account => account.id === node.account && account.type === 'account');
 let flows;
 const totalsFor = id => id === undefined ? flows.overall : flows.totals.get(id) ?? flows.unassigned;
-const hasUnassigned = () => ['income','expense','investment'].some(type => flows.unassigned[type]);
+const plannedAmount = node => flows.amounts.get(node.id);
+const hasUnassigned = () => ['income','expense','investment'].some(type => flows.unassigned[type])
+  || nodes.some(node => node.type === 'investment' && node.investmentShare !== undefined && !accountFor(node));
 function connectionLabel(node) {
-  if (node.type !== 'income') return accountFor(node)?.label ?? 'Unassigned';
+  if (node.type !== 'income') {
+    const account = accountFor(node)?.label ?? 'Unassigned';
+    return node.investmentShare === undefined ? account : account + ' · ' + allocationPercent(node.investmentShare);
+  }
   const links = allocationsFor(node);
   return links.length ? links.map(link => {
     const account = nodes.find(n => n.id === link.target);
@@ -66,7 +71,7 @@ function draw() {
     ctx.lineTo(tx - 7,ty - 3.5);
     ctx.lineTo(tx - 7,ty + 3.5);
     ctx.fill();
-    if (share !== undefined && (type === 'account' || share !== fullAllocation)) {
+    if (share !== undefined && (type !== 'income' || share !== fullAllocation)) {
       const label = allocationPercent(share) + ' · ' + money(cents);
       const x = (sx + tx) / 2, y = (sy + ty) / 2;
       ctx.font = '600 12px system-ui';
@@ -98,7 +103,7 @@ function render() {
     }
   }
   for (const node of nodes) {
-    const value = money(node.type === 'account' ? totalsFor(node.id).net : node.amount);
+    const value = money(node.type === 'account' ? totalsFor(node.id).net : plannedAmount(node));
     const button = document.createElement('button');
     const card = document.createElement('div');
     card.className = 'node-shell ' + node.type;
@@ -109,7 +114,8 @@ function render() {
     button.innerHTML = '<span class="badge" aria-hidden="true"></span><span class="info"><strong></strong><small></small></span>';
     button.querySelector('.badge').textContent = icons[node.type];
     button.querySelector('strong').textContent = node.label;
-    button.querySelector('small').textContent = value + (node.type === 'account' ? ' net / mo' : ' / mo');
+    button.querySelector('small').textContent = value + (node.type === 'account' ? ' net / mo' : ' / mo')
+      + (node.investmentShare === undefined ? '' : ' · ' + allocationPercent(node.investmentShare));
     button.title = titles[node.type] + ' · ' + node.label;
     let drag, moved = false;
     button.onpointerdown = event => {
@@ -169,15 +175,19 @@ function updateFields() {
   const type = fields.type.value;
   const isAccount = type === 'account';
   const splitIncome = type === 'income' && nodes.find(n => n.id === activeId)?.allocations !== undefined;
-  byId('amountLabel').hidden = fields.amount.disabled = isAccount;
+  const isInvestment = type === 'investment';
+  const isPercent = isInvestment && fields.fundingMode.value === 'percent';
+  byId('fundingModeLabel').hidden = fields.fundingMode.disabled = !isInvestment;
+  byId('investmentShareLabel').hidden = fields.investmentShare.disabled = !isPercent;
+  byId('amountLabel').hidden = fields.amount.disabled = isAccount || isPercent;
   byId('accountLabel').hidden = fields.account.disabled = isAccount || splitIncome;
   byId('direction').textContent = type === 'income' ? 'Deposits into' : 'Paid from';
-  byId('help').textContent = isAccount ? 'The account shows its monthly net flow.' : splitIncome ? 'Use the right circle to edit percentage allocations.' : 'Choose an account to connect this node on the map.';
+  byId('help').textContent = isAccount ? 'The account shows its monthly net flow.' : splitIncome ? 'Use the right circle to edit percentage allocations.' : isPercent ? 'Percentage investments use available funds after expenses and fixed investments, before transfers out.' : 'Choose an account to connect this node on the map.';
 }
-function openEditor(node) {
+function openEditor(node, fundingAccount) {
   activeId = node?.id;
   removalPending = false;
-  byId('dialogTitle').textContent = node ? 'Edit node' : 'Add node';
+  byId('dialogTitle').textContent = fundingAccount ? 'Fund investment' : node ? 'Edit node' : 'Add node';
   byId('remove').hidden = !node;
   byId('remove').textContent = 'Delete node';
   fields.type.value = node?.type ?? 'expense';
@@ -186,15 +196,33 @@ function openEditor(node) {
   fields.amount.value = node?.amount === undefined ? '0' : (node.amount / 100).toFixed(2);
   fields.account.replaceChildren(new Option('Unassigned',''));
   for (const account of nodes.filter(n => n.type === 'account')) fields.account.add(new Option(account.label,account.id));
-  fields.account.value = node?.account ?? (node ? '' : fields.account.options[1]?.value ?? '');
+  fields.account.value = fundingAccount?.id ?? node?.account ?? (node ? '' : fields.account.options[1]?.value ?? '');
+  fields.fundingMode.value = node?.investmentShare === undefined ? 'fixed' : 'percent';
+  fields.investmentShare.value = node?.investmentShare === undefined ? '10' : node.investmentShare / 100;
+  fields.account.setCustomValidity('');
+  fields.investmentShare.setCustomValidity('');
   fields.label.setCustomValidity('');
   updateFields();
   byId('node-connections').hidden = !node || !['income','account'].includes(node.type);
   byId('node-connections').onclick = () => { editor.close(); openConnections(node); };
   editor.showModal();
-  fields.label.focus();
+  (fundingAccount ? fields.fundingMode : fields.label).focus();
 }
-fields.type.onchange = updateFields;
+fields.type.onchange = () => {
+  fields.account.setCustomValidity('');
+  fields.investmentShare.setCustomValidity('');
+  updateFields();
+};
+fields.fundingMode.onchange = () => {
+  fields.account.setCustomValidity('');
+  fields.investmentShare.setCustomValidity('');
+  updateFields();
+};
+fields.account.onchange = () => {
+  fields.account.setCustomValidity('');
+  fields.investmentShare.setCustomValidity('');
+};
+fields.investmentShare.oninput = () => fields.investmentShare.setCustomValidity('');
 fields.label.oninput = () => fields.label.setCustomValidity('');
 byId('add').onclick = () => openEditor();
 byId('close').onclick = () => editor.close();
@@ -208,9 +236,27 @@ form.onsubmit = event => {
   }
   const type = fields.type.value;
   const existing = nodes.find(n => n.id === activeId);
+  const percent = type === 'investment' && fields.fundingMode.value === 'percent';
+  const share = percent ? Math.round(fields.investmentShare.valueAsNumber * 100) : undefined;
+  if (percent && !fields.account.value) {
+    fields.account.setCustomValidity('Choose an account for this percentage investment.');
+    fields.account.reportValidity();
+    return;
+  }
+  if (percent) {
+    const used = nodes.filter(n => n.id !== activeId && n.account === fields.account.value)
+      .reduce((sum,n) => sum + (n.investmentShare ?? 0),0);
+    if (used + share > fullAllocation) {
+      fields.investmentShare.setCustomValidity('This account has ' + allocationPercent(fullAllocation - used) + ' available for percentage investments.');
+      fields.investmentShare.reportValidity();
+      return;
+    }
+  }
   const node = existing ?? {id:crypto.randomUUID(),type,...positionFor(type, nodes)};
   node.label = label;
   if (type !== 'account') {
+    if (percent) node.investmentShare = share;
+    else delete node.investmentShare;
     node.amount = Math.round(Number(fields.amount.value) * 100);
     if (!fields.account.disabled) node.account = fields.account.value;
   }
@@ -284,7 +330,7 @@ function downloadPlan() {
       node.label,
       titles[node.type],
       isAccount ? '' : connectionLabel(node),
-      isAccount ? null : node.amount / 100,
+      isAccount ? null : plannedAmount(node) / 100,
       isAccount ? totalsFor(node.id).net / 100 : null
     ]);
   }

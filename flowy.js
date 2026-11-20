@@ -102,8 +102,8 @@ async function askFlowyAI(event) {
       flows:nodes.map(node => ({
         name:node.label,
         type:node.type,
-        amountInCents:node.amount,
-        linkedAccount:node.type === 'income' ? connectionLabel(node) : accountFor(node)?.label,
+        amountInCents:plannedAmount(node),
+        linkedAccount:node.type === 'account' ? undefined : connectionLabel(node),
         accountNetInCents:node.type === 'account' ? totalsFor(node.id).net : undefined
       }))
     };
