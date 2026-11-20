@@ -49,7 +49,7 @@ function createPlanWorkbook(summaryRows, nodeRows, {zipSync, strToU8}) {
       <cellXfs count="3"><xf xfId="0"/><xf xfId="0" fontId="1" applyFont="1"/><xf xfId="0" numFmtId="164" applyNumberFormat="1"/></cellXfs>
       <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
     </styleSheet>`,
-    'xl/worksheets/summary.xml': worksheet(summaryRows, [32, 16, 16, 18, 16]),
+    'xl/worksheets/summary.xml': worksheet(summaryRows, [32, 16, 16, 18, 22, 16]),
     'xl/worksheets/nodes.xml': worksheet(nodeRows, [34, 16, 34, 18, 18])
   };
   return zipSync(Object.fromEntries(Object.entries(files).map(([name, xml]) => [name, strToU8('<?xml version="1.0" encoding="UTF-8"?>' + xml)])));

@@ -7,14 +7,17 @@ const nodeLayer = byId('nodes'), listView = byId('listView'), editor = byId('edi
 const form = byId('form'), fields = form.elements;
 const nodeWidth = 214, nodeHeight = 78;
 const accountFor = node => nodes.find(account => account.id === node.account && account.type === 'account');
-const totalsFor = id => {
-  const totals = {income:0,expense:0,investment:0};
-  for (const node of nodes) {
-    if (node.type !== 'account' && (id === undefined || node.account === id)) totals[node.type] += node.amount;
-  }
-  totals.net = totals.income - totals.expense - totals.investment;
-  return totals;
-};
+let flows;
+const totalsFor = id => id === undefined ? flows.overall : flows.totals.get(id) ?? flows.unassigned;
+const hasUnassigned = () => ['income','expense','investment'].some(type => flows.unassigned[type]);
+function connectionLabel(node) {
+  if (node.type !== 'income') return accountFor(node)?.label ?? 'Unassigned';
+  const links = allocationsFor(node);
+  return links.length ? links.map(link => {
+    const account = nodes.find(n => n.id === link.target);
+    return (account?.label ?? 'Unassigned') + ' ' + allocationPercent(link.share);
+  }).join(', ') : 'Unassigned';
+}
 function save() {
   try {
     localStorage.setItem(planKey, JSON.stringify(nodes));
@@ -44,14 +47,11 @@ function draw() {
   canvas.height = Math.ceil(height * zoom * ratio);
   const ctx = canvas.getContext('2d');
   ctx.scale(zoom * ratio, zoom * ratio);
-  for (const node of nodes) {
-    const account = accountFor(node);
-    if (!account) continue;
-    const [source,target] = node.type === 'income' ? [node,account] : [account,node];
+  for (const {source,target,type,share,cents} of flows.edges) {
     const sx = source.x + nodeWidth, sy = source.y + nodeHeight / 2;
     const tx = target.x - 8, ty = target.y + nodeHeight / 2;
     const bend = Math.max(42, Math.abs(tx - sx) * .53);
-    const color = getComputedStyle(document.documentElement).getPropertyValue({income:'--green',expense:'--pink',investment:'--purple'}[node.type]).trim();
+    const color = getComputedStyle(document.documentElement).getPropertyValue({income:'--green',expense:'--pink',investment:'--purple',account:'--blue'}[type]).trim();
     ctx.strokeStyle = color;
     ctx.globalAlpha = .64;
     ctx.lineWidth = 1.8;
@@ -66,12 +66,26 @@ function draw() {
     ctx.lineTo(tx - 7,ty - 3.5);
     ctx.lineTo(tx - 7,ty + 3.5);
     ctx.fill();
+    if (share !== undefined && (type === 'account' || share !== fullAllocation)) {
+      const label = allocationPercent(share) + ' · ' + money(cents);
+      const x = (sx + tx) / 2, y = (sy + ty) / 2;
+      ctx.font = '600 12px system-ui';
+      const labelWidth = ctx.measureText(label).width + 12;
+      ctx.fillStyle = '#0d1520';
+      ctx.fillRect(x - labelWidth / 2,y - 12,labelWidth,24);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = color;
+      ctx.fillText(label,x,y);
+    }
   }
+  drawConnectionDraft(ctx, zoom);
   byId('fit').textContent = Math.round(zoom * 100) + '%';
 }
 function render() {
+  flows = calculateFlows(nodes);
   const totals = totalsFor();
-  for (const [name,value] of Object.entries(totals)) byId(name).textContent = money(value);
+  for (const name of ['income','expense','investment','net']) byId(name).textContent = money(totals[name]);
   byId('count').textContent = nodes.length + (nodes.length === 1 ? ' node' : ' nodes');
   nodeLayer.replaceChildren();
   listView.replaceChildren();
@@ -86,10 +100,13 @@ function render() {
   for (const node of nodes) {
     const value = money(node.type === 'account' ? totalsFor(node.id).net : node.amount);
     const button = document.createElement('button');
+    const card = document.createElement('div');
+    card.className = 'node-shell ' + node.type;
+    card.dataset.nodeId = node.id;
+    card.style.left = node.x + 'px';
+    card.style.top = node.y + 'px';
     button.className = 'node ' + node.type;
-    button.style.left = node.x + 'px';
-    button.style.top = node.y + 'px';
-    button.innerHTML = '<span class="badge" aria-hidden="true"></span><span class="info"><strong></strong><small></small></span><span class="ports" aria-hidden="true"><i></i><i></i></span>';
+    button.innerHTML = '<span class="badge" aria-hidden="true"></span><span class="info"><strong></strong><small></small></span>';
     button.querySelector('.badge').textContent = icons[node.type];
     button.querySelector('strong').textContent = node.label;
     button.querySelector('small').textContent = value + (node.type === 'account' ? ' net / mo' : ' / mo');
@@ -109,16 +126,35 @@ function render() {
       scale = lastScale;
       node.x = Math.max(0, Math.round(drag.left + dx / scale));
       node.y = Math.max(0, Math.round(drag.top + dy / scale));
-      button.style.left = node.x + 'px';
-      button.style.top = node.y + 'px';
+      card.style.left = node.x + 'px';
+      card.style.top = node.y + 'px';
       draw();
     };
     button.onlostpointercapture = () => { if (drag && moved) save(); drag = null; };
     button.onclick = event => { if (!moved || !event.detail) openEditor(node); };
-    nodeLayer.append(button);
+    card.append(button);
+    if (node.type !== 'income') {
+      const inlet = document.createElement('span');
+      inlet.className = 'node-inlet';
+      inlet.setAttribute('aria-hidden','true');
+      card.append(inlet);
+    }
+    if (node.type === 'income' || node.type === 'account') {
+      const outlet = document.createElement('button');
+      outlet.type = 'button';
+      outlet.className = 'node-outlet';
+      outlet.setAttribute('aria-label','Edit outgoing connections for ' + node.label);
+      outlet.title = 'Drag to connect or click to edit';
+      outlet.onpointerdown = event => beginConnectionDrag(event,node);
+      outlet.onclick = event => {
+        if (!outlet.dataset.dragged || !event.detail) openConnections(node);
+      };
+      card.append(outlet);
+    }
+    nodeLayer.append(card);
     const row = document.createElement('button');
     row.className = 'row';
-    const connection = node.type === 'account' ? 'Monthly net' : accountFor(node)?.label ?? 'Unassigned';
+    const connection = node.type === 'account' ? 'Monthly net' : connectionLabel(node);
     for (const text of [node.label, titles[node.type] + ' · ' + connection, value]) {
       const span = document.createElement('span');
       span.textContent = text;
@@ -132,10 +168,11 @@ function render() {
 function updateFields() {
   const type = fields.type.value;
   const isAccount = type === 'account';
-  byId('amountLabel').hidden = byId('accountLabel').hidden = isAccount;
-  fields.amount.disabled = fields.account.disabled = isAccount;
+  const splitIncome = type === 'income' && nodes.find(n => n.id === activeId)?.allocations !== undefined;
+  byId('amountLabel').hidden = fields.amount.disabled = isAccount;
+  byId('accountLabel').hidden = fields.account.disabled = isAccount || splitIncome;
   byId('direction').textContent = type === 'income' ? 'Deposits into' : 'Paid from';
-  byId('help').textContent = isAccount ? 'The account shows its monthly net flow.' : 'Choose an account to connect this node on the map.';
+  byId('help').textContent = isAccount ? 'The account shows its monthly net flow.' : splitIncome ? 'Use the right circle to edit percentage allocations.' : 'Choose an account to connect this node on the map.';
 }
 function openEditor(node) {
   activeId = node?.id;
@@ -152,6 +189,8 @@ function openEditor(node) {
   fields.account.value = node?.account ?? (node ? '' : fields.account.options[1]?.value ?? '');
   fields.label.setCustomValidity('');
   updateFields();
+  byId('node-connections').hidden = !node || !['income','account'].includes(node.type);
+  byId('node-connections').onclick = () => { editor.close(); openConnections(node); };
   editor.showModal();
   fields.label.focus();
 }
@@ -173,7 +212,7 @@ form.onsubmit = event => {
   node.label = label;
   if (type !== 'account') {
     node.amount = Math.round(Number(fields.amount.value) * 100);
-    node.account = fields.account.value;
+    if (!fields.account.disabled) node.account = fields.account.value;
   }
   if (!existing) nodes.push(node);
   save();
@@ -190,7 +229,10 @@ byId('remove').onclick = () => {
     return;
   }
   nodes = nodes.filter(n => n.id !== activeId);
-  for (const node of nodes) if (node.account === activeId) node.account = '';
+  for (const node of nodes) {
+    if (node.account === activeId) node.account = '';
+    if (node.allocations) node.allocations = node.allocations.filter(link => link.target !== activeId);
+  }
   save();
   editor.close();
   render();
@@ -212,6 +254,7 @@ render();
 window.addEventListener('storage', event => {
   if (event.key !== planKey && event.key !== null) return;
   if (editor.open) editor.close();
+  if (byId('connection-editor').open) byId('connection-editor').close();
   nodes = readPlan();
   render();
 });
@@ -222,15 +265,15 @@ window.addEventListener('pageshow', event => {
 });
 
 function downloadPlan() {
-  const summary = [['Account', 'Income (USD)', 'Expenses (USD)', 'Investments (USD)', 'Remainder (USD)']];
+  const summary = [['Account', 'Income (USD)', 'Expenses (USD)', 'Investments (USD)', 'Net transfers (USD)', 'Remainder (USD)']];
   function addSummary(label, totals) {
-    summary.push([label, totals.income / 100, totals.expense / 100, totals.investment / 100, totals.net / 100]);
+    summary.push([label, totals.income / 100, totals.expense / 100, totals.investment / 100, (totals.transfersIn - totals.transfersOut) / 100, totals.net / 100]);
   }
   addSummary('Entire plan', totalsFor());
   for (const node of nodes) {
     if (node.type === 'account') addSummary(node.label, totalsFor(node.id));
   }
-  if (nodes.some(node => node.type !== 'account' && !accountFor(node))) {
+  if (hasUnassigned()) {
     addSummary('Unassigned flows', totalsFor(''));
   }
 
@@ -240,7 +283,7 @@ function downloadPlan() {
     rows.push([
       node.label,
       titles[node.type],
-      isAccount ? '' : accountFor(node)?.label ?? 'Unassigned',
+      isAccount ? '' : connectionLabel(node),
       isAccount ? null : node.amount / 100,
       isAccount ? totalsFor(node.id).net / 100 : null
     ]);
@@ -281,9 +324,12 @@ async function downloadExpenseReport() {
   );
 
   const accounts = nodes.filter(node => node.type === 'account')
-    .map(node => ({label: node.label, ...formattedTotals(node.id)}));
-  if (nodes.some(node => node.type !== 'account' && !accountFor(node))) {
-    accounts.push({label: 'Unassigned flows', ...formattedTotals('')});
+    .map(node => {
+      const {transfersIn, transfersOut} = totalsFor(node.id);
+      return {label: node.label, ...formattedTotals(node.id), netTransfers:money(transfersIn - transfersOut)};
+    });
+  if (hasUnassigned()) {
+    accounts.push({label: 'Unassigned flows', ...formattedTotals(''), netTransfers:money(0)});
   }
   const expenses = nodes.filter(node => node.type === 'expense').map(node => ({
     label: node.label,

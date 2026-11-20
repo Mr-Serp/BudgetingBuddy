@@ -71,9 +71,9 @@ function createExpenseReport({totals, accounts, expenses}) {
       expenses.length ? expenseTable : empty('No expense nodes in this plan.'),
       section('Account breakdown'),
       accounts.length ? reportTable(
-        ['Account', 'Income', 'Expenses', 'Investments', 'Remainder'],
-        accounts.map(item => [item.label, item.income, item.expense, item.investment, item.net]),
-        ['*', 84, 84, 84, 84], [1, 2, 3, 4]
+        ['Account', 'Income', 'Expenses', 'Investments', 'Net transfers', 'Remainder'],
+        accounts.map(item => [item.label, item.income, item.expense, item.investment, item.netTransfers, item.net]),
+        ['*', 69, 69, 69, 69, 69], [1, 2, 3, 4, 5]
       ) : empty('No account flows to show.')
     ]
   };

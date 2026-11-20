@@ -28,8 +28,8 @@ function answerBudgetQuestion(question) {
     const summary = deficits.length
       ? 'These accounts have negative planned monthly flow:\n' + deficits.map(account => '• ' + account.label + ' · ' + money(account.net)).join('\n')
       : accounts.length ? 'None of the linked accounts has negative planned monthly flow.' : 'Add an account and link your flows to check it for a shortfall.';
-    const unassigned = nodes.filter(node => node.type !== 'account' && !accountFor(node)).length;
-    return summary + (unassigned ? '\n\nUnassigned flows: ' + unassigned + '. Link them to include them in account totals.' : '');
+    const unassigned = hasUnassigned();
+    return summary + (unassigned ? '\n\nSome flows are unassigned. Link them to include them in account totals.' : '');
   }
   const expenses = nodes.filter(node => node.type === 'expense' && node.amount > 0)
     .sort((a,b) => b.amount - a.amount).slice(0,3);
@@ -103,7 +103,7 @@ async function askFlowyAI(event) {
         name:node.label,
         type:node.type,
         amountInCents:node.amount,
-        linkedAccount:accountFor(node)?.label,
+        linkedAccount:node.type === 'income' ? connectionLabel(node) : accountFor(node)?.label,
         accountNetInCents:node.type === 'account' ? totalsFor(node.id).net : undefined
       }))
     };
