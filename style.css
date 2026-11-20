@@ -41,3 +41,5 @@
 .node-inlet{pointer-events:auto}#node-connections{margin-top:10px}
 .map-title,.month-picker{display:flex;align-items:center;gap:8px}.map-title{flex-wrap:wrap;column-gap:13px}.month-picker{gap:4px;border:1px solid var(--line);border-radius:8px;background:#0e1520;padding:2px}.month-picker button{border:0;background:transparent;color:var(--cyan);border-radius:5px;width:28px;height:28px;font-size:22px;line-height:1}.month-picker button:disabled{opacity:.4;cursor:default}.month-picker time{font-size:14px;min-width:112px;text-align:center;white-space:nowrap}.account-rollup{margin-top:15px}.account-rollup p{font-size:14px;margin-top:5px}
 @media(max-width:560px){.boardhead:has(.map-title){flex-wrap:wrap}.boardhead:has(.map-title) .board-actions{flex-direction:row;justify-content:flex-start}}
+.clear-map{border-color:#694450;color:var(--pink);background:#271c29}.clear-map:disabled{cursor:default}
+#clear-map-description,#clear-map-error{margin-top:10px}#clear-map-error:empty{display:none}

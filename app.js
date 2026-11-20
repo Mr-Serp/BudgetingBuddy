@@ -92,6 +92,7 @@ function draw() {
 }
 function render() {
   flows = calculateFlows(nodes);
+  byId('clear-map').disabled = nodes.length === 0;
   renderMonthSummary();
   const totals = totalsFor();
   for (const name of ['income','expense','investment','net']) byId(name).textContent = money(totals[name]);
@@ -287,7 +288,31 @@ byId('remove').onclick = () => {
   editor.close();
   render();
 };
+const clearMapDialog = byId('clear-map-dialog');
+byId('clear-map').onclick = () => {
+  byId('clear-map-description').textContent = 'Remove all nodes and connections for ' + monthLabel(selectedMonth) + '?';
+  byId('clear-map-error').textContent = '';
+  clearMapDialog.showModal();
+};
+byId('cancel-clear-map').onclick = () => clearMapDialog.close();
+byId('clear-map-form').onsubmit = event => {
+  event.preventDefault();
+  try {
+    clearMonthPlan(selectedMonth);
+  } catch {
+    byId('clear-map-error').textContent = 'Could not save the change on this device. Please try again.';
+    return;
+  }
+  nodes = [];
+  byId('status').textContent = '● Saved on this device';
+  clearMapDialog.close();
+  render();
+  byId('connection-status').textContent = 'Flow Map cleared for ' + monthLabel(selectedMonth) + '.';
+  byId('add').focus();
+};
+
 function setView(isMap) {
+  byId('clear-map').hidden = !isMap;
   viewport.hidden = byId('zoom').hidden = !isMap;
   listView.hidden = isMap;
   byId('map').setAttribute('aria-pressed', isMap);
@@ -348,6 +373,7 @@ window.addEventListener('storage', event => {
   if (event.key !== budgetKey && event.key !== null) return;
   if (editor.open) editor.close();
   if (byId('connection-editor').open) byId('connection-editor').close();
+  if (clearMapDialog.open) clearMapDialog.close();
   nodes = monthPlan(selectedMonth);
   render();
 });

@@ -75,3 +75,14 @@ function saveMonthPlan(month, nodes) {
   budget.months[month] = nodes;
   localStorage.setItem(budgetKey,JSON.stringify(budget));
 }
+
+function clearMonthPlan(month) {
+  const budget = readBudget();
+  const following = shiftMonth(month,1);
+  if (month >= budget.start && month !== '9999-12' && !Object.hasOwn(budget.months,following)) {
+    // Preserve the next month's inherited plan before changing its source.
+    budget.months[following] = monthPlan(following,budget);
+  }
+  budget.months[month] = [];
+  localStorage.setItem(budgetKey,JSON.stringify(budget));
+}
