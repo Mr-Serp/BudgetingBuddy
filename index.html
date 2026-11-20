@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Build a monthly budget, map how money moves between accounts, and see what you have left."><title>Budgeting Buddy — Visual Budget Planner</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header class="top"><a class="brand" href="./"><span class="mark">≋</span> Budgeting Buddy</a><nav class="site-nav" aria-label="Workspace"><a href="./" aria-current="page">Flow Map</a><a href="credit.html">Credit Score</a></nav><span id="status" class="saved" role="status">● Saved on this device</span></header>
+<main>
+<section class="intro"><div><h1>Your monthly budget</h1><p>Map your income, bills, and investments to see what you have left each month.</p></div><div class="intro-actions"><button class="download flowy-trigger" id="ask-flowy" type="button" aria-controls="flowy" aria-expanded="false"><span class="flowy-icon" aria-hidden="true"><i></i></span> Ask Flowy</button><button class="primary" id="add">＋ Add node</button></div></section>
+<section class="metrics" aria-label="Monthly totals">
+<article><span class="badge income">↙</span><div>Monthly income<strong id="income"></strong></div></article>
+<article><span class="badge expense">↗</span><div>Monthly expenses<strong id="expense"></strong></div></article>
+<article><span class="badge investment">◈</span><div>Monthly investments<strong id="investment"></strong></div></article>
+<article class="net"><span class="badge account">≈</span><div>Monthly remainder<strong id="net"></strong></div></article>
+</section>
+<div class="planner-layout"><section class="board"><header class="boardhead"><div><h2>Flow map</h2><p>Drag to arrange · Select a node to edit</p></div><div class="board-actions"><button type="button" id="download-pdf" class="download">Download PDF</button><button type="button" id="download" class="download">Download Excel</button><div class="switch" aria-label="View"><button id="map" aria-pressed="true">⌘ Map</button><button id="list" aria-pressed="false">☰ List</button></div></div></header>
+<div id="viewport"><div id="surface"><canvas id="edges" aria-hidden="true"></canvas><div id="nodes"></div></div></div><div id="listView" hidden></div>
+<footer><div class="legend"><span class="income">Income</span><span class="account">Account</span><span class="expense">Expense</span><span class="investment">Investment</span></div><div class="zoom" id="zoom"><button id="out" aria-label="Zoom out">−</button><button id="fit" title="Fit map">100%</button><button id="in" aria-label="Zoom in">+</button></div></footer></section>
+<aside id="flowy" class="flowy-panel" aria-labelledby="flowy-title" hidden>
+<header class="flowy-head"><span class="flowy-avatar" aria-hidden="true"><span class="flowy-icon"><i></i></span></span><h2 id="flowy-title" tabindex="-1">Ask Flowy</h2><button type="button" id="close-flowy" aria-label="Close Ask Flowy">×</button></header>
+<div class="flowy-body">
+<p>Ask about your budget or try a spending change.</p>
+<div class="flowy-prompts" aria-label="Budget questions">
+<button type="button" data-question="summary">How does my budget look?</button>
+<button type="button" data-question="accounts">Which accounts run short?</button>
+<button type="button" data-question="expenses">Where could I cut spending?</button>
+</div>
+<form id="flowy-scenario"><label for="flowy-cut">What if I cut monthly expenses by</label><div class="flowy-input"><input id="flowy-cut" type="number" min="0.01" step=".01" max="999999999" required placeholder="USD"><button class="download" type="submit">Calculate</button></div></form>
+<form id="flowy-chat" hidden><label for="flowy-question">Ask a question</label><div class="flowy-input"><input id="flowy-question" type="text" maxlength="500" required><button class="download" type="submit">Ask</button></div><p class="flowy-note">Uses on-device AI. Your plan stays in this browser.</p></form>
+<div id="flowy-answer" class="flowy-answer" role="status" aria-live="polite" hidden></div>
+</div></aside></div>
+<p id="report-status" class="report-status" role="status"></p><div class="footnote"><span>USD · Monthly planning</span><span id="count"></span></div>
+</main>
+<dialog id="editor"><form id="form"><div class="dialoghead"><h2 id="dialogTitle">Add node</h2><button id="close" type="button" aria-label="Close">×</button></div><label>Node type<select name="type"><option value="income">Income</option><option value="account">Account</option><option value="expense">Expense</option><option value="investment">Investment</option></select></label><label>Name<input name="label" required maxlength="48" placeholder="e.g. Rent"></label><label id="amountLabel">Monthly amount (USD)<input name="amount" type="number" required min="0" max="999999999" step=".01" value="0"></label><label id="accountLabel"><span id="direction"></span><select name="account"></select></label><p id="help" aria-live="polite"></p><div class="actions"><button type="button" id="remove">Delete node</button><button class="primary" type="submit">Save node</button></div></form></dialog>
+<script src="vendor/fflate.js"></script><script src="excel.js"></script><script src="report.js"></script><script src="plan.js"></script><script src="app.js"></script><script src="flowy.js"></script></body></html>

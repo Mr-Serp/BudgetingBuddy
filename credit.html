@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Compare credit utilization, plan card payments, and estimate borrowing scenarios with Budgeting Buddy.">
+  <title>Credit Score — Budgeting Buddy</title><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><a class="brand" href="./"><span class="mark">≋</span> Budgeting Buddy</a><nav class="site-nav" aria-label="Workspace"><a href="./">Flow Map</a><a href="credit.html" aria-current="page">Credit Score</a></nav></header>
+<main>
+  <section class="intro"><div><h1>Credit Score</h1><p>See how planned card payments affect credit utilization and compare loan scenarios.</p></div></section>
+  <section class="metrics credit-metrics" aria-label="Credit utilization summary">
+    <article><div>Reported balances<strong id="credit-balance">—</strong></div></article>
+    <article><div>Total credit limit<strong id="credit-limit">—</strong></div></article>
+    <article><div>Current utilization<strong id="credit-use">—</strong></div></article>
+    <article class="net"><div>After planned payments<strong id="credit-after">—</strong></div></article>
+  </section>
+  <div class="credit-layout">
+    <section class="board credit-box" aria-labelledby="cards-heading">
+      <header class="credit-heading"><h2 id="cards-heading">Credit cards</h2><button class="primary" id="add-card" type="button">＋ Add card</button></header>
+      <div id="card-list"></div>
+      <p id="credit-status" role="status"></p>
+    </section>
+    <aside class="board credit-box credit-guide">
+      <h2>How to read this</h2>
+      <p>Utilization is your reported revolving balance divided by your credit limit. It’s one factor in credit scores, alongside payment history, credit age, credit mix, and new credit.</p>
+      <p>The calculator shows utilization. A bureau score requires credit report data and a scoring model.</p>
+      <p>After-payment figures assume no new charges, interest, or fees, and that the lower balance is reported.</p>
+      <h2>Link a card payment</h2>
+      <p>Use <strong>Send to Flow Map</strong> to plan a monthly cash outflow. If you already budgeted the same purchases, include only the part of the payment you haven’t counted.</p>
+    </aside>
+  </div>
+  <section class="board credit-box loan-box" aria-labelledby="loan-heading">
+    <h2 id="loan-heading">Potential loan amount</h2>
+    <p>Compare how much you could borrow under three debt-to-income scenarios.</p>
+    <form id="loan-form">
+      <div class="loan-fields">
+        <label>Estimated current credit score<input name="score" type="number" min="300" max="850" step="1" required placeholder="300–850"></label>
+        <label>Gross monthly income (USD)<input name="income" type="number" min="1" max="999999999" step=".01" required placeholder="Before taxes"></label>
+        <label>Existing monthly debt payments (USD)<input name="debt" type="number" min="0" max="999999999" step=".01" value="0" required></label>
+        <label>Assumed annual rate (%)<input name="apr" type="number" min="0" max="100" step=".01" value="12" required></label>
+        <label>Loan term (months)<input name="term" type="number" min="1" max="480" step="1" value="60" required></label>
+      </div>
+      <p class="loan-note">Include payments you’ll still owe after taking out the new loan. Use a quoted annual rate if you have one. The starting rate is an example.</p>
+      <button class="primary" type="submit">Estimate loan amounts</button>
+    </form>
+    <div id="loan-results" hidden>
+      <h3 id="loan-score" tabindex="-1"></h3>
+      <p id="loan-context"></p>
+      <div class="loan-table-wrap"><table class="loan-table">
+        <thead><tr><th scope="col">Total debt-to-income</th><th scope="col">New monthly payment</th><th scope="col">Estimated loan</th></tr></thead>
+        <tbody id="loan-scenarios"></tbody>
+      </table></div>
+      <p class="loan-note" id="loan-assumptions"></p>
+    </div>
+    <p class="loan-note">These are planning estimates. Lenders use their own credit models, rates, fees, and approval criteria. Your estimated score gives context for the rate you might be offered.</p>
+  </section>
+</main>
+<dialog id="card-editor">
+  <form id="card-form">
+    <div class="dialoghead"><h2 id="card-editor-title">Add card</h2><button id="close-card" type="button" aria-label="Close">×</button></div>
+    <label>Card nickname<input name="label" required maxlength="40" placeholder="e.g. Everyday card"></label>
+    <label>Reported balance (USD)<input name="balance" type="number" required min="0" max="999999999" step=".01"></label>
+    <label>Credit limit (USD)<input name="creditLimit" type="number" required min=".01" max="999999999" step=".01"></label>
+    <label>Planned monthly payment (USD)<input name="payment" type="number" required min="0" max="999999999" step=".01"></label>
+    <label>Paying account<select name="account"></select></label>
+    <p id="card-help"></p>
+    <div class="actions"><button class="download" id="remove-card" type="button">Remove card</button><button class="primary" type="submit">Save card</button></div>
+  </form>
+</dialog>
+<script src="plan.js"></script><script src="credit.js"></script><script src="loan.js"></script>
+</body>
+</html>
